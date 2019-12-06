@@ -3,7 +3,7 @@ import './style.css';
 
 const svgElement: HTMLElement = document.getElementById('svg') as HTMLElement;
 
-const width = 600, height = 600, stepX = 10, stepY = 10, offsetX = 5, offsetY = 5;
+const width = 600, height = 600, stepX = 12, stepY = 12, offsetX = 5, offsetY = 5;
 // const countX = Math.floor((width - offsetX) / stepX), countY = ((height - offsetY) / stepY);
 const draw = SVG('svg').size(width, height);
 
@@ -113,12 +113,12 @@ function randomise(_pointer: Pointer, _all: Particle[], inside: Particle[]): voi
 }
 
 function explode(pointer: Pointer, all: Particle[], inside: Particle[]): void {
-  for (let particle of all) {
+  for (let particle of inside) {
     const dx = particle.x - pointer.x;
     const dy = particle.y - pointer.y;
-    const d = Math.sqrt(dx * dx + dy * dy);
+    const d = Math.max(1, Math.sqrt(dx * dx + dy * dy));
 
-    particle.x = particle.x + dx / ((d * d) / pointer.radius);
-    particle.y = particle.y + dy / ((d * d) / pointer.radius);
+    particle.x = particle.x - dx / ((d * d) / pointer.radius);
+    particle.y = particle.y - dy / ((d * d) / pointer.radius);
   }
 }
