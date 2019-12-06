@@ -1,0 +1,14 @@
+body {
+  background-color: #333;
+}
+
+#svg {
+  position: absolute;
+
+  top: 50%;
+  left: 50%;
+  margin-left: -300px;
+  margin-top: -300px;
+  width: 600px;
+  height: 600px;
+}
