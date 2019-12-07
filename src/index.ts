@@ -29,6 +29,8 @@ const pointer: Pointer = {
   element: null
 };
 
+type Modifier = (_pointer: Pointer, _all: Particle[], inside: Particle[]) => void;
+
 function initParticles(particles: Particle[]) {
   for (let y = offsetX; y < width; y += stepX) {
     for (let x = offsetY; x < height; x += stepY) {
@@ -41,6 +43,13 @@ function redrawParticles(particles: Particle[]) {
   for (let particle of particles) {
     particle.element.attr({cx: particle.x, cy: particle. y});
   }
+}
+
+function modifyParticles(pointer: Pointer, particles: Particle[], modifier: Modifier) {
+  const inside: Particle[] = particlesInsidePointer(pointer, particles);
+
+  modifier(pointer, particles, inside);
+  redrawParticles(particles);
 }
 
 function contains(x: number, y: number, r: number, particle: Particle): boolean {
@@ -70,17 +79,39 @@ function drawPointer(pointer: Pointer) {
   }
 }
 
+const modifiers: Modifier[] = [randomise, randomise2, implode, explode];
+
 function addEventListeners(pointer: Pointer, particles: Particle[]) {
-  svgElement.addEventListener('mousemove', (e) => {
-    pointer.x = e.pageX - svgElement.offsetLeft;
-    pointer.y = e.pageY - svgElement.offsetTop;
+  let modifierIndex = 0;
+
+  svgElement.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
 
     drawPointer(pointer);
+    modifyParticles(pointer, particles, modifiers[modifierIndex]);
 
-    const inside: Particle[] = particlesInsidePointer(pointer, particles);
+    const mouseMove = (e: MouseEvent) => {
+      e.preventDefault();
 
-    explode(pointer, particles, inside);
-    redrawParticles(particles);
+      pointer.x = e.pageX - svgElement.offsetLeft;
+      pointer.y = e.pageY - svgElement.offsetTop;
+
+      pointer.x = Math.round(pointer.x / stepX) * stepX;
+      pointer.y = Math.round(pointer.y / stepY) * stepY;
+
+      drawPointer(pointer);
+      modifyParticles(pointer, particles, modifiers[modifierIndex]);
+    };
+
+    const mouseUp = (e: MouseEvent) => {
+      e.preventDefault();
+      document.removeEventListener('mousemove', mouseMove);
+      document.removeEventListener('mouseup', mouseUp);
+    };
+
+    document.addEventListener('mousemove', mouseMove);
+    document.addEventListener('mouseup', mouseUp);
   });
 
   svgElement.addEventListener('wheel', (e) => {
@@ -92,11 +123,20 @@ function addEventListeners(pointer: Pointer, particles: Particle[]) {
     }
   });
 
-  svgElement.addEventListener('click', (e) => {
-    const inside: Particle[] = particlesInsidePointer(pointer, particles);
+  svgElement.addEventListener('mousemove', (e) => {
+    pointer.x = e.pageX - svgElement.offsetLeft;
+    pointer.y = e.pageY - svgElement.offsetTop;
 
-    explode(pointer, particles, inside);
-    redrawParticles(particles);
+    pointer.x = Math.round(pointer.x / stepX) * stepX;
+    pointer.y = Math.round(pointer.y / stepY) * stepY;
+
+    drawPointer(pointer);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.keyCode === 70) {
+      modifierIndex = (modifierIndex + 1) % modifiers.length;
+    }
   });
 }
 
@@ -107,8 +147,26 @@ addEventListeners(pointer, particles);
 
 function randomise(_pointer: Pointer, _all: Particle[], inside: Particle[]): void {
   for (let particle of inside) {
-    particle.x = Math.random() * 600;
-    particle.y = Math.random() * 600;
+    // particle.x += Math.random() * 10;
+    particle.y += Math.random() * 10;
+  }
+}
+
+function randomise2(_pointer: Pointer, _all: Particle[], inside: Particle[]): void {
+  for (let particle of inside) {
+    particle.x += Math.random() * 10 - 5;
+    particle.y -= Math.random() * 10 - 5;
+  }
+}
+
+function implode(pointer: Pointer, all: Particle[], inside: Particle[]): void {
+  for (let particle of inside) {
+    const dx = particle.x - pointer.x;
+    const dy = particle.y - pointer.y;
+    const d = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+
+    particle.x = particle.x - dx / ((d * d) / pointer.radius);
+    particle.y = particle.y - dy / ((d * d) / pointer.radius);
   }
 }
 
@@ -118,7 +176,7 @@ function explode(pointer: Pointer, all: Particle[], inside: Particle[]): void {
     const dy = particle.y - pointer.y;
     const d = Math.max(1, Math.sqrt(dx * dx + dy * dy));
 
-    particle.x = particle.x - dx / ((d * d) / pointer.radius);
-    particle.y = particle.y - dy / ((d * d) / pointer.radius);
+    particle.x = particle.x + dx / ((d * d) / pointer.radius);
+    particle.y = particle.y + dy / ((d * d) / pointer.radius);
   }
 }
