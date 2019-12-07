@@ -27,10 +27,21 @@ const pointer: Pointer = {
 
 type Modifier = (_pointer: Pointer, _all: Particle[], inside: Particle[]) => void;
 
-function initParticles(particles: Particle[]) {
+function initParticles(particles: Particle[], image: ImageData | null) {
   for (let y = offsetX; y < width; y += stepX) {
     for (let x = offsetY; x < height; x += stepY) {
-      particles.push({x, y});
+      if (image) {
+        const ix = Math.round(image.width / width * x);
+        const iy = Math.round(image.height / height * y);
+        const i = (iy * image.width + ix) * 4;
+
+        if (image.data[i] < 20) {
+          particles.push({x, y});
+        }
+      }
+      else {
+        particles.push({x, y});
+      }
     }
   }
 }
@@ -149,9 +160,33 @@ function addEventListeners(pointer: Pointer, particles: Particle[]) {
   });
 }
 
-initParticles(particles);
-addEventListeners(pointer, particles);
-drawScene(particles, pointer);
+function loadImage(url: string, cb :(image: ImageData) => void) {
+  const img = new Image();
+
+  img.crossOrigin = "*";
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width
+    canvas.height = img.height
+
+    const context = canvas.getContext('2d');
+
+    if (context) {
+      context.drawImage(img, 0, 0);
+
+      const pixels = context.getImageData(0, 0, img.width, img.height);
+      cb(pixels);
+    }
+  }
+
+  img.src = url;
+}
+
+loadImage('http://localhost:8003/image.png', (data) => {
+  initParticles(particles, data);
+  addEventListeners(pointer, particles);
+  drawScene(particles, pointer);
+});
 
 // -----------------------------------------------------------------------------
 
@@ -170,7 +205,7 @@ function randomise2(_pointer: Pointer, _all: Particle[], inside: Particle[]): vo
 }
 
 function implode(pointer: Pointer, all: Particle[], inside: Particle[]): void {
-  for (let particle of inside) {
+  for (let particle of all) {
     const dx = particle.x - pointer.x;
     const dy = particle.y - pointer.y;
     const d = Math.max(1, Math.sqrt(dx * dx + dy * dy));
