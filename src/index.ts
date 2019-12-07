@@ -1,16 +1,14 @@
-import * as SVG from 'svg.js';
 import './style.css';
 
-const svgElement: HTMLElement = document.getElementById('svg') as HTMLElement;
+const canvasElement: HTMLCanvasElement = document.getElementById('canvas') as HTMLCanvasElement;
 
-const width = 600, height = 600, stepX = 12, stepY = 12, offsetX = 5, offsetY = 5;
+const width = 600, height = 600, stepX = 10, stepY = 10, offsetX = 5, offsetY = 5;
 // const countX = Math.floor((width - offsetX) / stepX), countY = ((height - offsetY) / stepY);
-const draw = SVG('svg').size(width, height);
+const draw = canvasElement.getContext('2d') as CanvasRenderingContext2D;
 
 type Particle = {
   x: number,
-  y: number,
-  element: SVG.Circle
+  y: number
 };
 
 const particles: Particle[] = [];
@@ -18,15 +16,13 @@ const particles: Particle[] = [];
 type Pointer = {
   x: number,
   y: number,
-  radius: number,
-  element: SVG.Circle | null
+  radius: number
 };
 
 const pointer: Pointer = {
   x: 0,
   y: 0,
-  radius: 100,
-  element: null
+  radius: 100
 };
 
 type Modifier = (_pointer: Pointer, _all: Particle[], inside: Particle[]) => void;
@@ -34,22 +30,30 @@ type Modifier = (_pointer: Pointer, _all: Particle[], inside: Particle[]) => voi
 function initParticles(particles: Particle[]) {
   for (let y = offsetX; y < width; y += stepX) {
     for (let x = offsetY; x < height; x += stepY) {
-      particles.push({x, y, element: draw.circle(3).attr({cx: x, cy: y, fill: '#fff'})});
+      particles.push({x, y});
     }
   }
 }
 
-function redrawParticles(particles: Particle[]) {
+function drawParticles(particles: Particle[]) {
+  draw.fillStyle = '#fff';
+  draw.lineWidth = 1;
+  draw.strokeStyle = '#fff';
+
   for (let particle of particles) {
-    particle.element.attr({cx: particle.x, cy: particle. y});
+    draw.beginPath();
+    // draw.moveTo(particle.x - 2, particle.y - 2);
+    // draw.lineTo(particle.x + 2, particle.y + 2);
+    // draw.moveTo(particle.x + 2, particle.y - 2);
+    // draw.lineTo(particle.x - 2, particle.y + 2);
+    draw.arc(particle.x, particle.y, 1, 0, 2 * Math.PI, false);
+    draw.fill();
   }
 }
 
 function modifyParticles(pointer: Pointer, particles: Particle[], modifier: Modifier) {
   const inside: Particle[] = particlesInsidePointer(pointer, particles);
-
   modifier(pointer, particles, inside);
-  redrawParticles(particles);
 }
 
 function contains(x: number, y: number, r: number, particle: Particle): boolean {
@@ -71,12 +75,17 @@ function particlesInsidePointer(pointer: Pointer, particles: Particle[]): Partic
 }
 
 function drawPointer(pointer: Pointer) {
-  if (pointer.element === null) {
-    pointer.element = draw.circle().radius(pointer.radius).attr({cx: pointer.x, cy: pointer.y, fill: 'transparent', stroke: '#fff'});
-  }
-  else {
-    pointer.element.attr({cx: pointer.x, cy: pointer.y}).radius(pointer.radius);
-  }
+  draw.beginPath();
+  draw.arc(pointer.x, pointer.y, pointer.radius, 0, 2 * Math.PI, false);
+  draw.stroke();
+}
+
+function drawScene(particles: Particle[], pointer: Pointer) {
+  draw.fillStyle = '#333';
+  draw.fillRect(0, 0, width, height);
+
+  drawParticles(particles);
+  drawPointer(pointer);
 }
 
 const modifiers: Modifier[] = [randomise, randomise2, implode, explode];
@@ -84,24 +93,24 @@ const modifiers: Modifier[] = [randomise, randomise2, implode, explode];
 function addEventListeners(pointer: Pointer, particles: Particle[]) {
   let modifierIndex = 0;
 
-  svgElement.addEventListener('mousedown', (e) => {
+  canvasElement.addEventListener('mousedown', (e) => {
     e.preventDefault();
     e.stopPropagation();
 
-    drawPointer(pointer);
     modifyParticles(pointer, particles, modifiers[modifierIndex]);
+    drawScene(particles, pointer);
 
     const mouseMove = (e: MouseEvent) => {
       e.preventDefault();
 
-      pointer.x = e.pageX - svgElement.offsetLeft;
-      pointer.y = e.pageY - svgElement.offsetTop;
+      pointer.x = e.pageX - canvasElement.offsetLeft;
+      pointer.y = e.pageY - canvasElement.offsetTop;
 
       pointer.x = Math.round(pointer.x / stepX) * stepX;
       pointer.y = Math.round(pointer.y / stepY) * stepY;
 
-      drawPointer(pointer);
       modifyParticles(pointer, particles, modifiers[modifierIndex]);
+      drawScene(particles, pointer);
     };
 
     const mouseUp = (e: MouseEvent) => {
@@ -114,23 +123,23 @@ function addEventListeners(pointer: Pointer, particles: Particle[]) {
     document.addEventListener('mouseup', mouseUp);
   });
 
-  svgElement.addEventListener('wheel', (e) => {
+  canvasElement.addEventListener('wheel', (e) => {
     if (pointer !== null) {
       pointer.radius -= e.deltaY;
       pointer.radius = Math.min(200, Math.max(10, pointer.radius));
 
-      drawPointer(pointer);
+      drawScene(particles, pointer);
     }
   });
 
-  svgElement.addEventListener('mousemove', (e) => {
-    pointer.x = e.pageX - svgElement.offsetLeft;
-    pointer.y = e.pageY - svgElement.offsetTop;
+  canvasElement.addEventListener('mousemove', (e) => {
+    pointer.x = e.pageX - canvasElement.offsetLeft;
+    pointer.y = e.pageY - canvasElement.offsetTop;
 
     pointer.x = Math.round(pointer.x / stepX) * stepX;
     pointer.y = Math.round(pointer.y / stepY) * stepY;
 
-    drawPointer(pointer);
+    drawScene(particles, pointer);
   });
 
   document.addEventListener('keydown', (e) => {
@@ -142,6 +151,7 @@ function addEventListeners(pointer: Pointer, particles: Particle[]) {
 
 initParticles(particles);
 addEventListeners(pointer, particles);
+drawScene(particles, pointer);
 
 // -----------------------------------------------------------------------------
 
