@@ -11,7 +11,10 @@ type Particle = {
   y: number
 };
 
-const particles: Particle[] = [];
+type Line = {
+  a: Particle,
+  b: Particle
+};
 
 type Pointer = {
   x: number,
@@ -19,29 +22,40 @@ type Pointer = {
   radius: number
 };
 
-const pointer: Pointer = {
-  x: 0,
-  y: 0,
-  radius: 100
+type Scene = {
+  particles: Particle[],
+  lines: Line[],
+  pointer: Pointer
 };
 
 type Modifier = (_pointer: Pointer, _all: Particle[], inside: Particle[]) => void;
 
-function initParticles(particles: Particle[], image: ImageData | null) {
+function initParticles(particles: Particle[], lines: Line[], image: ImageData | null) {
   for (let y = offsetX; y < width; y += stepX) {
-    for (let x = offsetY; x < height; x += stepY) {
+    for (let x = offsetY, a = null, b = null; x < height; x += stepY) {
       if (image) {
         const ix = Math.round(image.width / width * x);
         const iy = Math.round(image.height / height * y);
         const i = (iy * image.width + ix) * 4;
 
         if (image.data[i] < 20) {
-          particles.push({x, y});
+          b = {x, y};
+          particles.push(b);
+        }
+        else {
+          b = null;
         }
       }
       else {
-        particles.push({x, y});
+        b = {x, y};
+        particles.push(b);
       }
+
+      if (a && b) {
+        lines.push({a, b});
+      }
+
+      a = b;
     }
   }
 }
@@ -52,13 +66,35 @@ function drawParticles(particles: Particle[]) {
   draw.strokeStyle = '#fff';
 
   for (let particle of particles) {
-    draw.beginPath();
+    // draw.beginPath();
     // draw.moveTo(particle.x - 2, particle.y - 2);
-    // draw.lineTo(particle.x + 2, particle.y + 2);
+    // draw.moveTo(particle.x + 2, particle.y + 2);
     // draw.moveTo(particle.x + 2, particle.y - 2);
     // draw.lineTo(particle.x - 2, particle.y + 2);
+
+    // VARIATION: 3D-y pattern
+    // draw.moveTo(particle.x - 2, particle.y - 2);
+    // draw.moveTo(particle.x + 2, particle.y + 2);
+    // draw.moveTo(particle.x - 2, particle.y - 2);
+    // draw.lineTo(particle.x + 50, particle.y + 50);
+    // draw.stroke();
+
+    draw.beginPath();
     draw.arc(particle.x, particle.y, 1, 0, 2 * Math.PI, false);
     draw.fill();
+  }
+}
+
+function drawLines(lines: Line[]) {
+  draw.fillStyle = '#fff';
+  draw.lineWidth = 1;
+  draw.strokeStyle = '#fff';
+
+  for (let line of lines) {
+    draw.beginPath();
+    draw.moveTo(line.a.x, line.a.y);
+    draw.lineTo(line.b.x, line.b.y);
+    draw.stroke();
   }
 }
 
@@ -91,37 +127,38 @@ function drawPointer(pointer: Pointer) {
   draw.stroke();
 }
 
-function drawScene(particles: Particle[], pointer: Pointer) {
+function drawScene(scene: Scene) {
   draw.fillStyle = '#333';
   draw.fillRect(0, 0, width, height);
 
-  drawParticles(particles);
-  drawPointer(pointer);
+  drawParticles(scene.particles);
+  drawLines(scene.lines);
+  drawPointer(scene.pointer);
 }
 
 const modifiers: Modifier[] = [randomise, randomise2, implode, explode];
 
-function addEventListeners(pointer: Pointer, particles: Particle[]) {
+function addEventListeners(scene: Scene) {
   let modifierIndex = 0;
 
   canvasElement.addEventListener('mousedown', (e) => {
     e.preventDefault();
     e.stopPropagation();
 
-    modifyParticles(pointer, particles, modifiers[modifierIndex]);
-    drawScene(particles, pointer);
+    modifyParticles(scene.pointer, scene.particles, modifiers[modifierIndex]);
+    drawScene(scene);
 
     const mouseMove = (e: MouseEvent) => {
       e.preventDefault();
 
-      pointer.x = e.pageX - canvasElement.offsetLeft;
-      pointer.y = e.pageY - canvasElement.offsetTop;
+      scene.pointer.x = e.pageX - canvasElement.offsetLeft;
+      scene.pointer.y = e.pageY - canvasElement.offsetTop;
 
-      pointer.x = Math.round(pointer.x / stepX) * stepX;
-      pointer.y = Math.round(pointer.y / stepY) * stepY;
+      scene.pointer.x = Math.round(scene.pointer.x / stepX) * stepX;
+      scene.pointer.y = Math.round(scene.pointer.y / stepY) * stepY;
 
-      modifyParticles(pointer, particles, modifiers[modifierIndex]);
-      drawScene(particles, pointer);
+      modifyParticles(scene.pointer, scene.particles, modifiers[modifierIndex]);
+      drawScene(scene);
     };
 
     const mouseUp = (e: MouseEvent) => {
@@ -135,22 +172,22 @@ function addEventListeners(pointer: Pointer, particles: Particle[]) {
   });
 
   canvasElement.addEventListener('wheel', (e) => {
-    if (pointer !== null) {
-      pointer.radius -= e.deltaY;
-      pointer.radius = Math.min(200, Math.max(10, pointer.radius));
+    if (scene.pointer !== null) {
+      scene.pointer.radius -= e.deltaY;
+      scene.pointer.radius = Math.min(200, Math.max(10, scene.pointer.radius));
 
-      drawScene(particles, pointer);
+      drawScene(scene);
     }
   });
 
   canvasElement.addEventListener('mousemove', (e) => {
-    pointer.x = e.pageX - canvasElement.offsetLeft;
-    pointer.y = e.pageY - canvasElement.offsetTop;
+    scene.pointer.x = e.pageX - canvasElement.offsetLeft;
+    scene.pointer.y = e.pageY - canvasElement.offsetTop;
 
-    pointer.x = Math.round(pointer.x / stepX) * stepX;
-    pointer.y = Math.round(pointer.y / stepY) * stepY;
+    scene.pointer.x = Math.round(scene.pointer.x / stepX) * stepX;
+    scene.pointer.y = Math.round(scene.pointer.y / stepY) * stepY;
 
-    drawScene(particles, pointer);
+    drawScene(scene);
   });
 
   document.addEventListener('keydown', (e) => {
@@ -182,11 +219,26 @@ function loadImage(url: string, cb :(image: ImageData) => void) {
   img.src = url;
 }
 
-loadImage('http://localhost:8003/image.png', (data) => {
-  initParticles(particles, data);
-  addEventListeners(pointer, particles);
-  drawScene(particles, pointer);
-});
+function go(image: ImageData | null) {
+  const particles: Particle[] = [];
+  const lines: Line[] = [];
+  const pointer: Pointer = {
+    x: 0,
+    y: 0,
+    radius: 100
+  };
+
+  const scene: Scene = { particles, lines, pointer };
+
+  // for debugging
+  (window as any).debugScene = scene;
+
+  initParticles(particles, lines, image);
+  addEventListeners(scene);
+  drawScene(scene);
+}
+
+loadImage('http://localhost:8003/image.png', go);
 
 // -----------------------------------------------------------------------------
 
