@@ -2,7 +2,7 @@ import './style.css';
 
 const canvasElement: HTMLCanvasElement = document.getElementById('canvas') as HTMLCanvasElement;
 
-const width = 600, height = 600, stepX = 10, stepY = 10, offsetX = 5, offsetY = 5;
+const width = 772, height = 600, stepX = 5, stepY = 10, offsetX = 10, offsetY = 5;
 // const countX = Math.floor((width - offsetX) / stepX), countY = ((height - offsetY) / stepY);
 const draw = canvasElement.getContext('2d') as CanvasRenderingContext2D;
 
@@ -34,8 +34,8 @@ type Modifier = (_pointer: Pointer, _all: Particle[], inside: Particle[]) => voi
 const white: rgb = {r: 1, g: 1, b: 1, a: 1};
 
 function initParticles(particles: Particle[], lines: Line[], image: ImageData | null) {
-  for (let y = offsetX; y < width; y += stepX) {
-    for (let x = offsetY, a = null, b = null; x < height; x += stepY) {
+  for (let y = offsetX; y < height; y += stepX) {
+    for (let x = offsetY, a = null, b = null; x < width; x += stepY) {
       if (image) {
         const ix = Math.round(image.width / width * x);
         const iy = Math.round(image.height / height * y);
@@ -292,7 +292,7 @@ function implode(pointer: Pointer, all: Particle[], inside: Particle[]): void {
   for (let particle of all) {
     const dx = particle.x - pointer.x;
     const dy = particle.y - pointer.y;
-    const d = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+    const d = Math.max(10, Math.sqrt(dx * dx + dy * dy));
 
     particle.x = particle.x - dx / ((d * d) / pointer.radius);
     particle.y = particle.y - dy / ((d * d) / pointer.radius);
