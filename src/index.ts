@@ -1,3 +1,4 @@
+import { saveAs } from 'file-saver';
 import './style.css';
 
 const canvasElement: HTMLCanvasElement = document.getElementById('canvas') as HTMLCanvasElement;
@@ -32,6 +33,25 @@ type Scene = {
 type Modifier = (_pointer: Pointer, _all: Particle[], inside: Particle[]) => void;
 
 const white: rgb = {r: 1, g: 1, b: 1, a: 1};
+
+function generateSVG(particles: Particle[], lines: Line[]):string {
+  let svg = '';
+
+  svg += `<?xml version="1.0" encoding="iso-8859-1"?>`;
+  svg += `<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 ${width} ${height}">\n`;
+
+  for (let particle of particles) {
+    svg += `<circle cx="${particle.x}" cy="${particle.y}" r="1" fill="${rgb2css(particle.color)}"/>\n`;
+  }
+
+  for (let line of lines) {
+    svg += `<line x1="${line.a.x}" y1="${line.a.y}" x2="${line.b.x}" y2="${line.b.y}" stroke="${rgb2css(line.a.color)}"/>\n`;
+  }
+
+  svg += `</svg>`;
+
+  return svg;
+}
 
 function initParticles(particles: Particle[], lines: Line[], image: ImageData | null) {
   for (let y = offsetX; y < height; y += stepX) {
@@ -169,6 +189,13 @@ const modifiers: Modifier[] = [colorShift, randomise, randomise2, implode, explo
 function addEventListeners(scene: Scene) {
   let modifierIndex = 0;
 
+  const save = document.getElementById('save');
+
+  save?.addEventListener('click', () => {
+    const blob = new Blob([generateSVG(scene.particles, scene.lines)], {type: "image/svg+xml"});
+    saveAs(blob, 'particles.svg');
+  });
+
   canvasElement.addEventListener('mousedown', (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -268,9 +295,6 @@ function go(image: ImageData | null) {
   addEventListeners(scene);
   drawScene(scene);
 }
-
-// loadImage('http://localhost:8003/image2.png', go);
-go(null);
 
 // -----------------------------------------------------------------------------
 
@@ -417,3 +441,8 @@ function hsv2rgb(hsv: hsv): rgb {
 function rgb2css(rgb: rgb): string {
   return 'rgba(' + (rgb.r * 255.0) + ', ' + (rgb.g * 255.0) + ', ' + (rgb.b * 255.0) + ', ' + (rgb.a * 255.0) + ')';
 }
+
+// -----------------------------------------------------------------------------
+
+// loadImage('http://localhost:8003/image2.png', go);
+go(null);
